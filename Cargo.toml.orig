@@ -1,6 +1,6 @@
 [package]
 name = "der"
-version = "0.7.8"
+version = "0.6.1"
 description = """
 Pure Rust embedded-friendly implementation of the Distinguished Encoding Rules
 (DER) for Abstract Syntax Notation One (ASN.1) as described in ITU X.690 with
@@ -13,32 +13,27 @@ categories = ["cryptography", "data-structures", "encoding", "no-std", "parser-i
 keywords = ["asn1", "crypto", "itu", "pkcs"]
 readme = "README.md"
 edition = "2021"
-rust-version = "1.65"
+rust-version = "1.57"
 
 [dependencies]
-arbitrary = { version = "1.3", features = ["derive"], optional = true }
-bytes = { version = "1", optional = true, default-features = false }
-const-oid = { version = "0.9.2", optional = true }
-der_derive = { version = "0.7.2", optional = true }
+const-oid = { version = "0.9", optional = true, path = "../const-oid" }
+der_derive = { version = "0.6", optional = true, path = "derive" }
 flagset = { version = "0.4.3", optional = true }
-pem-rfc7468 = { version = "0.7", optional = true, features = ["alloc"] }
+pem-rfc7468 = { version = "0.6", optional = true, path = "../pem-rfc7468" }
 time = { version = "0.3.4", optional = true, default-features = false }
-zeroize = { version = "1.5", optional = true, default-features = false }
+zeroize = { version = "1.5", optional = true, default-features = false, features = ["alloc"] }
 
 [dev-dependencies]
-hex-literal = "0.4.1"
+hex-literal = "0.3.3"
 proptest = "1"
 
 [features]
-alloc = ["zeroize?/alloc"]
-std = ["alloc"]
-
-arbitrary = ["dep:arbitrary", "const-oid?/arbitrary", "std"]
-bytes = ["dep:bytes", "alloc"]
-derive = ["dep:der_derive"]
-oid = ["dep:const-oid"]
-pem = ["dep:pem-rfc7468", "alloc", "zeroize"]
+alloc = []
+derive = ["der_derive"]
+oid = ["const-oid"]
+pem = ["alloc", "pem-rfc7468/alloc", "zeroize"]
 real = []
+std = ["alloc"]
 
 [package.metadata.docs.rs]
 all-features = true

@@ -1,10 +1,9 @@
 //! Trait definition for [`Encode`].
 
 use crate::{Header, Length, Result, SliceWriter, Tagged, Writer};
-use core::marker::PhantomData;
 
 #[cfg(feature = "alloc")]
-use {alloc::boxed::Box, alloc::vec::Vec, core::iter};
+use {alloc::vec::Vec, core::iter};
 
 #[cfg(feature = "pem")]
 use {
@@ -25,7 +24,7 @@ pub trait Encode {
     fn encoded_len(&self) -> Result<Length>;
 
     /// Encode this value as ASN.1 DER using the provided [`Writer`].
-    fn encode(&self, encoder: &mut impl Writer) -> Result<()>;
+    fn encode(&self, encoder: &mut dyn Writer) -> Result<()>;
 
     /// Encode this value to the provided byte slice, returning a sub-slice
     /// containing the encoded message.
@@ -38,6 +37,7 @@ pub trait Encode {
     /// Encode this message as ASN.1 DER, appending it to the provided
     /// byte vector.
     #[cfg(feature = "alloc")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "alloc")))]
     fn encode_to_vec(&self, buf: &mut Vec<u8>) -> Result<Length> {
         let expected_len = usize::try_from(self.encoded_len()?)?;
         buf.reserve(expected_len);
@@ -58,9 +58,10 @@ pub trait Encode {
         actual_len.try_into()
     }
 
-    /// Encode this type as DER, returning a byte vector.
+    /// Serialize this message as a byte vector.
     #[cfg(feature = "alloc")]
-    fn to_der(&self) -> Result<Vec<u8>> {
+    #[cfg_attr(docsrs, doc(cfg(feature = "alloc")))]
+    fn to_vec(&self) -> Result<Vec<u8>> {
         let mut buf = Vec::new();
         self.encode_to_vec(&mut buf)?;
         Ok(buf)
@@ -77,24 +78,9 @@ where
     }
 
     /// Encode this value as ASN.1 DER using the provided [`Writer`].
-    fn encode(&self, writer: &mut impl Writer) -> Result<()> {
+    fn encode(&self, writer: &mut dyn Writer) -> Result<()> {
         self.header()?.encode(writer)?;
         self.encode_value(writer)
-    }
-}
-
-/// Dummy implementation for [`PhantomData`] which allows deriving
-/// implementations on structs with phantom fields.
-impl<T> Encode for PhantomData<T>
-where
-    T: ?Sized,
-{
-    fn encoded_len(&self) -> Result<Length> {
-        Ok(Length::ZERO)
-    }
-
-    fn encode(&self, _writer: &mut impl Writer) -> Result<()> {
-        Ok(())
     }
 }
 
@@ -103,12 +89,14 @@ where
 /// This trait is automatically impl'd for any type which impls both
 /// [`Encode`] and [`PemLabel`].
 #[cfg(feature = "pem")]
+#[cfg_attr(docsrs, doc(cfg(feature = "pem")))]
 pub trait EncodePem: Encode + PemLabel {
     /// Try to encode this type as PEM.
     fn to_pem(&self, line_ending: LineEnding) -> Result<String>;
 }
 
 #[cfg(feature = "pem")]
+#[cfg_attr(docsrs, doc(cfg(feature = "pem")))]
 impl<T: Encode + PemLabel> EncodePem for T {
     fn to_pem(&self, line_ending: LineEnding) -> Result<String> {
         let der_len = usize::try_from(self.encoded_len()?)?;
@@ -141,18 +129,5 @@ pub trait EncodeValue {
 
     /// Encode value (sans [`Tag`]+[`Length`] header) as ASN.1 DER using the
     /// provided [`Writer`].
-    fn encode_value(&self, encoder: &mut impl Writer) -> Result<()>;
-}
-
-#[cfg(feature = "alloc")]
-impl<T> EncodeValue for Box<T>
-where
-    T: EncodeValue,
-{
-    fn value_len(&self) -> Result<Length> {
-        T::value_len(self)
-    }
-    fn encode_value(&self, writer: &mut impl Writer) -> Result<()> {
-        T::encode_value(self, writer)
-    }
+    fn encode_value(&self, encoder: &mut dyn Writer) -> Result<()>;
 }
