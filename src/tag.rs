@@ -1,5 +1,4 @@
 //! ASN.1 tags.
-#![cfg_attr(feature = "arbitrary", allow(clippy::integer_arithmetic))]
 
 mod class;
 mod mode;
@@ -47,7 +46,6 @@ impl<T: FixedTag> Tagged for T {
 /// - Bits 8/7: [`Class`]
 /// - Bit 6: primitive (0) or constructed (1)
 /// - Bits 5-1: tag number
-#[cfg_attr(feature = "arbitrary", derive(arbitrary::Arbitrary))]
 #[derive(Copy, Clone, Eq, PartialEq, PartialOrd, Ord)]
 #[non_exhaustive]
 pub enum Tag {
@@ -213,7 +211,7 @@ impl Tag {
             Tag::UtcTime => 0x17,
             Tag::GeneralizedTime => 0x18,
             Tag::VisibleString => 0x1A,
-            Tag::BmpString => 0x1E,
+            Tag::BmpString => 0x1D,
             Tag::Application {
                 constructed,
                 number,
@@ -282,7 +280,7 @@ impl TryFrom<u8> for Tag {
             0x17 => Ok(Tag::UtcTime),
             0x18 => Ok(Tag::GeneralizedTime),
             0x1A => Ok(Tag::VisibleString),
-            0x1E => Ok(Tag::BmpString),
+            0x1d => Ok(Tag::BmpString),
             0x30 => Ok(Tag::Sequence), // constructed
             0x31 => Ok(Tag::Set),      // constructed
             0x40..=0x7E => Ok(Tag::Application {
@@ -325,7 +323,7 @@ impl Encode for Tag {
         Ok(Length::ONE)
     }
 
-    fn encode(&self, writer: &mut impl Writer) -> Result<()> {
+    fn encode(&self, writer: &mut dyn Writer) -> Result<()> {
         writer.write_byte(self.into())
     }
 }

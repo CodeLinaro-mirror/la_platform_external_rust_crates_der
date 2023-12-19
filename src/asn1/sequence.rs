@@ -2,26 +2,55 @@
 //! `SEQUENCE`s to Rust structs.
 
 use crate::{
-    BytesRef, DecodeValue, EncodeValue, FixedTag, Header, Length, Reader, Result, Tag, Writer,
+    ByteSlice, Decode, DecodeValue, Encode, EncodeValue, FixedTag, Header, Length, Reader, Result,
+    Tag, Writer,
 };
 
-#[cfg(feature = "alloc")]
-use alloc::boxed::Box;
-
-/// Marker trait for ASN.1 `SEQUENCE`s.
+/// ASN.1 `SEQUENCE` trait.
 ///
-/// This is mainly used for custom derive.
-pub trait Sequence<'a>: DecodeValue<'a> + EncodeValue {}
+/// Types which impl this trait receive blanket impls for the [`Decode`],
+/// [`Encode`], and [`FixedTag`] traits.
+pub trait Sequence<'a>: Decode<'a> {
+    /// Call the provided function with a slice of [`Encode`] trait objects
+    /// representing the fields of this `SEQUENCE`.
+    ///
+    /// This method uses a callback because structs with fields which aren't
+    /// directly [`Encode`] may need to construct temporary values from
+    /// their fields prior to encoding.
+    fn fields<F, T>(&self, f: F) -> Result<T>
+    where
+        F: FnOnce(&[&dyn Encode]) -> Result<T>;
+}
 
-impl<'a, S> FixedTag for S
+impl<'a, M> EncodeValue for M
 where
-    S: Sequence<'a>,
+    M: Sequence<'a>,
+{
+    fn value_len(&self) -> Result<Length> {
+        self.fields(|fields| {
+            fields
+                .iter()
+                .try_fold(Length::ZERO, |acc, field| acc + field.encoded_len()?)
+        })
+    }
+
+    fn encode_value(&self, writer: &mut dyn Writer) -> Result<()> {
+        self.fields(|fields| {
+            for &field in fields {
+                field.encode(writer)?;
+            }
+
+            Ok(())
+        })
+    }
+}
+
+impl<'a, M> FixedTag for M
+where
+    M: Sequence<'a>,
 {
     const TAG: Tag = Tag::Sequence;
 }
-
-#[cfg(feature = "alloc")]
-impl<'a, T> Sequence<'a> for Box<T> where T: Sequence<'a> {}
 
 /// The [`SequenceRef`] type provides raw access to the octets which comprise a
 /// DER-encoded `SEQUENCE`.
@@ -29,13 +58,13 @@ impl<'a, T> Sequence<'a> for Box<T> where T: Sequence<'a> {}
 /// This is a zero-copy reference type which borrows from the input data.
 pub struct SequenceRef<'a> {
     /// Body of the `SEQUENCE`.
-    body: BytesRef<'a>,
+    body: ByteSlice<'a>,
 }
 
 impl<'a> DecodeValue<'a> for SequenceRef<'a> {
     fn decode_value<R: Reader<'a>>(reader: &mut R, header: Header) -> Result<Self> {
         Ok(Self {
-            body: BytesRef::decode_value(reader, header)?,
+            body: ByteSlice::decode_value(reader, header)?,
         })
     }
 }
@@ -45,9 +74,11 @@ impl EncodeValue for SequenceRef<'_> {
         Ok(self.body.len())
     }
 
-    fn encode_value(&self, writer: &mut impl Writer) -> Result<()> {
+    fn encode_value(&self, writer: &mut dyn Writer) -> Result<()> {
         self.body.encode_value(writer)
     }
 }
 
-impl<'a> Sequence<'a> for SequenceRef<'a> {}
+impl<'a> FixedTag for SequenceRef<'a> {
+    const TAG: Tag = Tag::Sequence;
+}
