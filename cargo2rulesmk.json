@@ -1,3 +1,4 @@
 {
-  "features": "alloc,derive,flagset,oid,zeroize"
+  "features": "alloc,derive,flagset,oid,zeroize",
+  "patch": "patches/rules.mk.diff"
 }
