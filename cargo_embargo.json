@@ -10,12 +10,13 @@
     "oid",
     "zeroize"
   ],
+  "vendor_available": true,
   "run_cargo": false,
   "variants": [
     {
       "package": {
         "der": {
-          "device_supported": false
+          "add_module_block": "cargo2android_viz.bp"
         }
       }
     },
